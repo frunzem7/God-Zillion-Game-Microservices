@@ -11,4 +11,5 @@ import student.examples.custom.validation.ValidToken;
 public class UserSignoutRequest {
 	@ValidToken(message = "Invalid token format")
 	private String token;
+	
 }

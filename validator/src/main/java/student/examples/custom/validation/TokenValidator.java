@@ -10,11 +10,6 @@ import jakarta.validation.ConstraintValidatorContext;
 public class TokenValidator implements ConstraintValidator<ValidToken, String> {
 
 	@Override
-	public void initialize(ValidToken contactNumber) {
-
-	}
-
-	@Override
 	public boolean isValid(String token, ConstraintValidatorContext cxt) {
 		try {
 			byte[] decodedBytes = Base64.getDecoder().decode(token);

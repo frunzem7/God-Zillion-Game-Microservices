@@ -1,0 +1,15 @@
+version: '3.5'
+
+services:
+    postgres:
+        container_name: game_db
+        image: postgres:15.4-bullseye
+        environment:
+                POSTGRES_USER: gg_user
+                POSTGRES_PASSWORD: admin
+                PGDATA: /data/postgres
+                POSTGRES_DB: gg_base
+        volumes:
+            - ./data:/data/postgres
+        ports:
+            - 5434:5432

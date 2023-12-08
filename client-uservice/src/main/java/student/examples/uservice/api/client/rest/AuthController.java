@@ -16,13 +16,18 @@ import student.examples.uservice.api.client.dto.RestSuccessResponse;
 import student.examples.uservice.api.client.dto.UserSigninRequest;
 import student.examples.uservice.api.client.dto.UserSignoutRequest;
 import student.examples.uservice.api.client.dto.UserSignupRequest;
+import student.examples.uservice.api.client.grpc.ClientgRPC;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
+	public ClientgRPC clientgRPC = new ClientgRPC();
+
 	@PostMapping("/signup")
 	public RestResponse signup(@Valid @RequestBody UserSignupRequest userSignupRequest) {
+		clientgRPC.createUserAndSend(userSignupRequest);
+
 		return new RestSuccessResponse(200, new HashMap<String, String>() {
 			{
 				put("message", String.format("an email has been sent to, please verify and activate your account",
