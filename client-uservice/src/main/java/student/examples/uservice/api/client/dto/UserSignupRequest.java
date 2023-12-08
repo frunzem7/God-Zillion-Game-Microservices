@@ -6,12 +6,14 @@ import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * THIS IS DTO
  */
 
 @Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserSignupRequest {
