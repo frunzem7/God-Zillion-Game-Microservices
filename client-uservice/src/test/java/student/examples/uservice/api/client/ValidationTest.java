@@ -1,19 +1,28 @@
 package student.examples.uservice.api.client;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.Set;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+
+import java.io.Reader;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.javafaker.Faker;
 
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
@@ -22,108 +31,147 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
-
-import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.CSVRecord;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest
 @AutoConfigureMockMvc
+@RunWith(SpringRunner.class)
 class ValidationTest {
-//	@Autowired
-//	private MockMvc mockMvc;
-
-	private Faker faker = new Faker();
-	private UserSignupRequest userSignupRequest = new UserSignupRequest();
+	@Autowired
+	private MockMvc mockMvc;
 
 	@Autowired
 	private ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
-	private static final String SAMPLE_CSV_FILE = System.getProperty("user.dir") + "/validData.csv";
 
-	@Test
-	public void validateTrueDataTest() throws IllegalArgumentException, IllegalAccessException, Exception {
+	private static final String VALID_DATA_CSV_FILE = System.getProperty("user.dir") + "/validData.csv";
+	private static final String INVALID_DATA_CSV_FILE = System.getProperty("user.dir") + "/invalidData.csv";
 
-		try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(SAMPLE_CSV_FILE));
+	@BeforeAll
+	public static void init() throws IOException {
+		Faker faker = new Faker();
+
+		try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(VALID_DATA_CSV_FILE));
 				CSVPrinter csvPrinter = new CSVPrinter(writer,
-						CSVFormat.DEFAULT.withHeader("Username", "Email", "Password", "PasswordConfirmation"))) {
+						CSVFormat.DEFAULT.withHeader("UserName", "Email", "Password", "PasswordConfirmation"));) {
 
-			userSignupRequest.setUsername(faker.regexify("^[a-zA-Z0-9]{8,}$"));
-			userSignupRequest.setEmail(faker.internet().emailAddress());
+			for (int i = 1; i <= 10; i++) {
+				String username = faker.regexify("^[a-zA-Z0-9]{8,}$");
+				String email = faker.internet().emailAddress();
+				String generatedPassword = faker.regexify("[a-zA-Z0-9]{8,}$");
 
-			String generatedPassword = faker.regexify("[a-zA-Z0-9]{8,}$");
-
-			userSignupRequest.setPassword(generatedPassword);
-			userSignupRequest.setPasswordConfirmation(generatedPassword);
-
-			System.out.println("Generated Password: " + generatedPassword);
-			System.out.println("Generated Confirmation: " + userSignupRequest.getPasswordConfirmation());
-
-			// Print CSV record inside the loop
-			csvPrinter.printRecord(Arrays.asList(userSignupRequest.getUsername(), userSignupRequest.getEmail(),
-					userSignupRequest.getPassword(), userSignupRequest.getPasswordConfirmation()));
-
-			// Flush and close the CSV printer
+				csvPrinter.printRecord(username, email, generatedPassword, generatedPassword);
+			}
 			csvPrinter.flush();
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 
-		ObjectMapper objectMapper = new ObjectMapper();
-		String jsonRequest = objectMapper.writeValueAsString(userSignupRequest);
+		try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(INVALID_DATA_CSV_FILE));
+				CSVPrinter csvPrinter = new CSVPrinter(writer,
+						CSVFormat.DEFAULT.withHeader("UserName", "Email", "Password", "PasswordConfirmation"));) {
 
-//		ResultActions result = mockMvc
-//				.perform(post("/auth/signup").contentType("application/json").content(jsonRequest));
+			for (int i = 1; i <= 10; i++) {
+				String username = faker.lorem().characters(1, 2);
+				String email = faker.lorem().word();
+				String generatedPassword = faker.lorem().characters(1, 7);
 
-//		result.andExpect(status().isOk());
+				csvPrinter.printRecord(username, email, generatedPassword, generatedPassword);
+			}
+			csvPrinter.flush();
+		}
+
+	}
+
+	@Test
+	void validateTrueDataTest() throws Exception {
 
 		Validator validator = factory.getValidator();
 
-		Set<ConstraintViolation<UserSignupRequest>> validation = validator.validate(userSignupRequest);
+		Set<jakarta.validation.ConstraintViolation<UserSignupRequest>> validation = null;
 
-		System.out.println(validation);
+		try (Reader reader = Files.newBufferedReader(Paths.get(VALID_DATA_CSV_FILE));
+				CSVParser csvParser = new CSVParser(reader,
+						CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());) {
+			for (CSVRecord csvRecord : csvParser) {
+				String username = csvRecord.get("UserName");
+				String email = csvRecord.get("Email");
+				String password = csvRecord.get("Password");
+				String passwordConfirmation = csvRecord.get("PasswordConfirmation");
 
+				validation = validator.validate(new UserSignupRequest(username, email, password, passwordConfirmation));
+			}
+		}
 		assertTrue(validation.isEmpty());
 	}
 
-//	@Test
-//	public void validateTrueDataTest3() throws IllegalArgumentException, IllegalAccessException {
-//
-//		for (int i = 0; i < 10; i++) {
-//
-//			userSignupRequest.setUsername(faker.regexify("^[a-zA-Z0-9]{8,}$"));
-//			userSignupRequest.setEmail(faker.internet().emailAddress());
-//			userSignupRequest.setPassword(
-//					faker.regexify("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@#$!%*?&])[A-Za-z\\d@#$!%*?&]{8,}$"));
-//			userSignupRequest.setPasswordConfirmation(userSignupRequest.getPassword());
-//
-//			Validator validator = factory.getValidator();
-//
-//			Set<ConstraintViolation<UserSignupRequest>> validation = validator.validate(userSignupRequest);
-//
-//			System.out.println(validation);
-//
-//			assertTrue(validation.isEmpty());
-//		}
-//	}
+	@Test
+	public void signupWithValidDataTest() throws IllegalArgumentException, IllegalAccessException, Exception {
+		try (Reader reader = Files.newBufferedReader(Paths.get(VALID_DATA_CSV_FILE));
+				CSVParser csvParser = new CSVParser(reader,
+						CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim())) {
+			for (CSVRecord csvRecord : csvParser) {
+				String username = csvRecord.get("UserName");
+				String email = csvRecord.get("Email");
+				String password = csvRecord.get("Password");
+				String passwordConfirmation = csvRecord.get("PasswordConfirmation");
 
-//	@Test
-//	public void validateFalseDataTest() throws IllegalArgumentException, IllegalAccessException {
-//
-//		for (int i = 0; i < 10; i++) {
-//
-//			userSignupRequest.setUsername(faker.lorem().characters(1, 2));
-//			userSignupRequest.setEmail(faker.lorem().word());
-//			userSignupRequest.setPassword(faker.lorem().characters(1, 7));
-//			userSignupRequest.setPasswordConfirmation(faker.lorem().characters(1, 7));
-//
-//			Validator validator = factory.getValidator();
-//
-//			Set<ConstraintViolation<UserSignupRequest>> validation = validator.validate(userSignupRequest);
-//
-//			System.out.println(validation);
-//
-//			assertFalse(validation.isEmpty());
-//		}
-//	}
+				UserSignupRequest userSignupRequest = new UserSignupRequest(username, email, password,
+						passwordConfirmation);
+
+				ObjectMapper objectMapper = new ObjectMapper();
+				String jsonRequest = objectMapper.writeValueAsString(userSignupRequest);
+
+				ResultActions result = mockMvc
+						.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content(jsonRequest));
+
+				result.andExpect(status().isOk());
+			}
+		}
+	}
+
+	@Test
+	void validateFalseDataTest() throws Exception {
+
+		Validator validator = factory.getValidator();
+
+		Set<jakarta.validation.ConstraintViolation<UserSignupRequest>> validation = null;
+
+		try (Reader reader = Files.newBufferedReader(Paths.get(INVALID_DATA_CSV_FILE));
+				CSVParser csvParser = new CSVParser(reader,
+						CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());) {
+			for (CSVRecord csvRecord : csvParser) {
+				String username = csvRecord.get("UserName");
+				String email = csvRecord.get("Email");
+				String password = csvRecord.get("Password");
+				String passwordConfirmation = csvRecord.get("PasswordConfirmation");
+
+				validation = validator.validate(new UserSignupRequest(username, email, password, passwordConfirmation));
+			}
+		}
+		assertFalse(validation.isEmpty());
+	}
+
+	@Test
+	public void signupWithInvalidDataTest() throws IllegalArgumentException, IllegalAccessException, Exception {
+		try (Reader reader = Files.newBufferedReader(Paths.get(INVALID_DATA_CSV_FILE));
+				CSVParser csvParser = new CSVParser(reader,
+						CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim())) {
+			for (CSVRecord csvRecord : csvParser) {
+				String username = csvRecord.get("UserName");
+				String email = csvRecord.get("Email");
+				String password = csvRecord.get("Password");
+				String passwordConfirmation = csvRecord.get("PasswordConfirmation");
+
+				UserSignupRequest userSignupRequest = new UserSignupRequest(username, email, password,
+						passwordConfirmation);
+
+				ObjectMapper objectMapper = new ObjectMapper();
+				String jsonRequest = objectMapper.writeValueAsString(userSignupRequest);
+
+				ResultActions result = mockMvc
+						.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content(jsonRequest));
+
+				result.andExpect(status().is4xxClientError());
+			}
+		}
+	}
 }
