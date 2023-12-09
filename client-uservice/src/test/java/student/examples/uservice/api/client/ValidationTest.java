@@ -10,8 +10,12 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 
 import java.io.Reader;
+
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -22,21 +26,30 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.javafaker.Faker;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
+import lombok.extern.slf4j.Slf4j;
 import student.examples.uservice.api.client.dto.UserSignupRequest;
-import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.eclipse.jgit.api.AddCommand;
 
-@SpringBootTest
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+
+@Slf4j
 @AutoConfigureMockMvc
 @RunWith(SpringRunner.class)
+@SpringBootTest
 class ValidationTest {
 	@Autowired
 	private MockMvc mockMvc;
@@ -44,14 +57,64 @@ class ValidationTest {
 	@Autowired
 	private ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
 
-	private static final String VALID_DATA_CSV_FILE = System.getProperty("user.dir") + "/validData.csv";
-	private static final String INVALID_DATA_CSV_FILE = System.getProperty("user.dir") + "/invalidData.csv";
+	@TempDir
+	static File tempDir;
+
+	private static String VALID_DATA_CSV_FILE = "C:\\Users\\User\\AppData\\Local\\Temp\\data\\validData.csv";
+	private static String INVALID_DATA_CSV_FILE = "C:\\Users\\User\\AppData\\Local\\Temp\\data\\invalidData.csv";
+
+	private static final String REPOSITORY_URL = "https://github.com/frunzem7/DataTestForGame.git";
+	private static final String BRANCH_NAME = "main";
+
+	@BeforeEach
+	public void setUp() throws IOException {
+		cloneRepository();
+	}
+
+	@AfterAll
+	public static void tearDown() {
+		pushToRepository();
+	}
+
+	private void cloneRepository() throws IOException {
+		try {
+			File destinationDirectory = new File("C:\\Users\\User\\AppData\\Local\\Temp\\data");
+			log.info("Destination Directory: " + destinationDirectory.getAbsolutePath());
+
+			if (destinationDirectory.exists() && destinationDirectory.list().length == 0) {
+				Git.cloneRepository().setURI(REPOSITORY_URL).setDirectory(destinationDirectory).setBranch(BRANCH_NAME)
+						.call();
+			} else {
+				log.info("Destination directory is not empty. Skipping cloning.");
+			}
+		} catch (GitAPIException e) {
+			e.printStackTrace();
+			log.info("Error cloning repository: " + e.getMessage());
+		}
+	}
+
+	private static void pushToRepository() {
+		try (Git git = Git.open(new File("C:\\Users\\User\\AppData\\Local\\Temp\\data\\.git"))) {
+			git.add().addFilepattern(".").call();
+			git.add().addFilepattern(".").call();
+			git.commit().setMessage("Test results").call();
+			git.push().setCredentialsProvider(
+					new UsernamePasswordCredentialsProvider("frunzem7", "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"))
+					.call();
+		} catch (IOException | GitAPIException e) {
+			e.printStackTrace();
+			log.info("Error pushing to repository: " + e.getMessage());
+		}
+	}
 
 	@BeforeAll
 	public static void init() throws IOException {
+
 		Faker faker = new Faker();
 
-		try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(VALID_DATA_CSV_FILE));
+		Files.createDirectories(Paths.get(tempDir.getAbsolutePath(), "data"));
+
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(VALID_DATA_CSV_FILE)));
 				CSVPrinter csvPrinter = new CSVPrinter(writer,
 						CSVFormat.DEFAULT.withHeader("UserName", "Email", "Password", "PasswordConfirmation"));) {
 
@@ -65,7 +128,7 @@ class ValidationTest {
 			csvPrinter.flush();
 		}
 
-		try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(INVALID_DATA_CSV_FILE));
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(INVALID_DATA_CSV_FILE)));
 				CSVPrinter csvPrinter = new CSVPrinter(writer,
 						CSVFormat.DEFAULT.withHeader("UserName", "Email", "Password", "PasswordConfirmation"));) {
 
@@ -77,6 +140,14 @@ class ValidationTest {
 				csvPrinter.printRecord(username, email, generatedPassword, generatedPassword);
 			}
 			csvPrinter.flush();
+		}
+
+		try (Git git = Git.open(new File("C:\\Users\\User\\AppData\\Local\\Temp\\data"))) {
+			AddCommand add = git.add();
+			add.addFilepattern(".").call();
+		} catch (IOException | GitAPIException e) {
+			e.printStackTrace();
+			log.info("Error adding files to repository: " + e.getMessage());
 		}
 
 	}
