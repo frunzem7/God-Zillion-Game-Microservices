@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -49,6 +50,16 @@ public class AuthController {
 	public RestResponse signout(@Valid @RequestBody UserSignoutRequest userDto) {
 		Map<String, String> map = new HashMap<String, String>();
 		map.put("message", String.format("User successfully signed out"));
+		RestResponse response = new RestSuccessResponse(200, map);
+
+		return response;
+	}
+
+	@PostMapping("/withdraw")
+	public RestResponse deleteByToken(@RequestParam(name = "token", required = true) String token) {
+		String responseFromService = clientgRPC.deleteUserAndSend(token);
+		Map<String, String> map = new HashMap<String, String>();
+		map.put("message", String.format(responseFromService));
 		RestResponse response = new RestSuccessResponse(200, map);
 
 		return response;

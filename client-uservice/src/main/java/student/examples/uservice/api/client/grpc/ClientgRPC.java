@@ -12,8 +12,6 @@ import student.examples.uservice.api.client.dto.UserSignupRequest;
 @Slf4j
 public class ClientgRPC {
 	public void createUserAndSend(UserSignupRequest userSignupRequest) {
-		log.info("I'm here, on the client side");
-
 		ManagedChannel channel = ManagedChannelBuilder.forTarget("localhost:8443").usePlaintext().build();
 
 		UserSignupServiceGrpc.UserSignupServiceBlockingStub stub = UserSignupServiceGrpc.newBlockingStub(channel);
@@ -24,12 +22,33 @@ public class ClientgRPC {
 				.newBuilder().setId(id.toString()).setUserName(userSignupRequest.getUsername())
 				.setEmail(userSignupRequest.getEmail()).setPassword(userSignupRequest.getPassword()).build();
 
-		log.info("request" + request);
+		log.info("Request" + request);
 
 		UserSignupServiceOuterClass.UserSignupResponse response = stub.signup(request);
 
 		log.info("User created: " + response);
 
 		channel.shutdownNow();
+	}
+
+	public String deleteUserAndSend(String token) {
+		ManagedChannel channel = ManagedChannelBuilder.forTarget("localhost:8443").usePlaintext().build();
+
+		UserSignupServiceGrpc.UserSignupServiceBlockingStub stub = UserSignupServiceGrpc.newBlockingStub(channel);
+
+		UUID id = UUID.randomUUID();
+
+		UserSignupServiceOuterClass.DeleteRequest request = UserSignupServiceOuterClass.DeleteRequest.newBuilder()
+				.setToken(token).build();
+
+		log.info("Request" + request);
+
+		UserSignupServiceOuterClass.DeleteResponse response = stub.deleteUser(request);
+
+		log.info("User deleted: " + response);
+
+		channel.shutdownNow();
+
+		return response.getUser();
 	}
 }

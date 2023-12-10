@@ -99,7 +99,7 @@ class ValidationTest {
 			git.add().addFilepattern(".").call();
 			git.commit().setMessage("Test results").call();
 			git.push().setCredentialsProvider(
-					new UsernamePasswordCredentialsProvider("frunzem7", "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"))
+					new UsernamePasswordCredentialsProvider("frunzem7", "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"))
 					.call();
 		} catch (IOException | GitAPIException e) {
 			e.printStackTrace();

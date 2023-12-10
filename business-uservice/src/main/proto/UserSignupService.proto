@@ -13,6 +13,15 @@ message UserSignupResponse {
     string greeting = 1;
 }
 
+message DeleteRequest {
+  string token = 1;
+}
+
+message DeleteResponse {
+  string user = 1;
+}
+
 service UserSignupService {
   rpc signup(UserSignupDtoRequest) returns (UserSignupResponse);
+  rpc deleteUser(DeleteRequest) returns (DeleteResponse);
 }
